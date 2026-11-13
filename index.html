@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ved Joshi</title>
+<meta name="description" content="Ved Joshi: IT undergrad in Mumbai building across web, machine learning and security. Explore the island as the wolf.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<canvas id="world" aria-label="An island you explore as a wolf. Use the place buttons at the top to travel by keyboard."></canvas>
+<div id="labels" aria-hidden="true"></div>
+
+<div class="bubble" id="bubble" aria-live="polite"><small id="bubbleLabel">The wolf</small><span id="bubbleText"></span></div>
+
+<header class="hud-top" id="hud">
+  <a class="brand" id="brand" href="#"></a>
+  <nav aria-label="Places on the island"><ol id="stops"></ol></nav>
+  <button type="button" class="pill" id="listBtn">Read as a page</button>
+</header>
+
+<div class="hud-bottom" id="hint">
+  <span id="hintText"></span>
+  <span class="found" id="found"></span>
+</div>
+
+<aside class="panel" id="panel" aria-label="Place details" hidden>
+  <header>
+    <span class="dot"></span><strong id="panelPlace"></strong>
+    <button type="button" class="close" id="panelClose" aria-label="Close">×</button>
+  </header>
+  <div class="panel-body" id="panelBody"></div>
+</aside>
+
+<section class="intro" id="intro"></section>
+
+<main class="list" id="list" hidden></main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="content.js"></script>
+<script src="world.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
