@@ -322,14 +322,14 @@ window.World = (function () {
     window.addEventListener('resize', resize); resize();
 
     // ---------- controls: keys, click or hold on the ground, travel ----------
-    var keys = {}, target = null, running = false, holding = false, enabled = false, moved = false;
-    var stuckT = 0, lastDist = 1e9, sidestep = 0, side = 1;
+    var keys = {}, target = null, running = false, holding = false, enabled = false, moved = false, path = null;
+    var slideSide = 1, stall = 0, hugT = 0, hugSide = 1, travelT = 0, anx = 0, anz = 1;
     var KEYMAP = { ArrowUp: 'u', KeyW: 'u', ArrowDown: 'd', KeyS: 'd', ArrowLeft: 'l', KeyA: 'l', ArrowRight: 'r', KeyD: 'r' };
     window.addEventListener('keydown', function (e) {
       if (!enabled || !KEYMAP[e.code] || e.metaKey || e.ctrlKey || e.altKey) return;
       var el = document.activeElement;
       if (el && el !== document.body && el !== canvas && e.code.indexOf('Arrow') === 0 && ui.panel.contains(el)) return;
-      keys[KEYMAP[e.code]] = true; target = null; e.preventDefault();
+      keys[KEYMAP[e.code]] = true; target = null; hugT = 0; path = null; e.preventDefault();
     });
     window.addEventListener('keyup', function (e) { if (KEYMAP[e.code]) keys[KEYMAP[e.code]] = false; });
     window.addEventListener('blur', function () { keys = {}; holding = false; });
@@ -343,6 +343,7 @@ window.World = (function () {
       var d = Math.hypot(gp.x, gp.z), lim = R - 3;
       if (d > lim) { gp.x *= lim / d; gp.z *= lim / d; }
       target = { x: gp.x, z: gp.z }; running = false; marker.position.set(gp.x, 0.08, gp.z); marker.material.opacity = 0.9;
+      travelT = 0; hugT = 0; path = null;
     }
     canvas.addEventListener('pointerdown', function (e) {
       if (!enabled) return;
@@ -354,16 +355,102 @@ window.World = (function () {
     function up(e) {
       holding = false;
       if (onWolf && Math.abs(e.clientX - downX) + Math.abs(e.clientY - downY) < 10) { howl(); if (ui.onTap) ui.onTap(); }
+      else if (target) routeTo(target.x, target.z);
       onWolf = false;
     }
     canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
     function howl() { react = 0; }
     function travel(id) {
       var p = PLACES[id]; if (!p) return;
-      target = { x: p.x, z: p.z + 1.5 }; running = true; marker.material.opacity = 0; lastDist = 1e9;
+      target = { x: p.x, z: p.z + 1.5 }; running = true; marker.material.opacity = 0; travelT = 0; hugT = 0; stall = 0;
+      routeTo(target.x, target.z);
     }
 
+    // ---------- route finding: a coarse grid + A*, so travel walks around things instead of into them ----------
+    var gridStep = 1.4, gridN = Math.ceil(R * 2 / gridStep), gridMask = null;
+    function buildGrid() {
+      gridMask = new Uint8Array(gridN * gridN);
+      for (var j = 0; j < gridN; j++) for (var i = 0; i < gridN; i++) {
+        var x = -R + (i + 0.5) * gridStep, z = -R + (j + 0.5) * gridStep, bad = Math.hypot(x, z) > R - 2.6 ? 1 : 0;
+        for (var k = 0; k < colliders.length && !bad; k++) {
+          var c = colliders[k];
+          if (Math.hypot(x - c.x, z - c.z) < c.r + 1.25) bad = 1;
+        }
+        gridMask[j * gridN + i] = bad;
+      }
+    }
+    function freeCell(c) {
+      if (!gridMask[c.j * gridN + c.i]) return c;
+      for (var ring = 1; ring < 9; ring++) for (var dj = -ring; dj <= ring; dj++) for (var di = -ring; di <= ring; di++) {
+        if (Math.max(Math.abs(di), Math.abs(dj)) !== ring) continue;
+        var i = c.i + di, j = c.j + dj;
+        if (i < 0 || j < 0 || i >= gridN || j >= gridN) continue;
+        if (!gridMask[j * gridN + i]) return { i: i, j: j };
+      }
+      return null;
+    }
+    function findPath(sx, sz, tx, tz) {
+      if (!gridMask) buildGrid();
+      var clampCell = function (x, z) {
+        return { i: Math.min(gridN - 1, Math.max(0, Math.floor((x + R) / gridStep))), j: Math.min(gridN - 1, Math.max(0, Math.floor((z + R) / gridStep))) };
+      };
+      var s = freeCell(clampCell(sx, sz)), g = freeCell(clampCell(tx, tz));
+      if (!s || !g) return null;
+      var n = gridN * gridN, startI = s.j * gridN + s.i, goalI = g.j * gridN + g.i;
+      if (startI === goalI) return [{ x: clearSpot(tx, tz) ? tx : -R + (g.i + 0.5) * gridStep, z: clearSpot(tx, tz) ? tz : -R + (g.j + 0.5) * gridStep }];
+      if (startI === goalI) return [{ x: tx, z: tz }];
+      var came = new Int32Array(n).fill(-1), gCost = new Float32Array(n).fill(1e9), fCost = new Float32Array(n).fill(1e9);
+      var closed = new Uint8Array(n), open = [startI];
+      gCost[startI] = 0; fCost[startI] = Math.hypot(s.i - g.i, s.j - g.j);
+      var hOf = function (idx) { var i = idx % gridN, j = (idx - i) / gridN; return Math.hypot(i - g.i, j - g.j); };
+      while (open.length) {
+        var bi = 0;
+        for (var q = 1; q < open.length; q++) if (fCost[open[q]] < fCost[open[bi]]) bi = q;
+        var cur = open.splice(bi, 1)[0];
+        if (cur === goalI) break;
+        if (closed[cur]) continue;
+        closed[cur] = 1;
+        var ci = cur % gridN, cj = (cur - ci) / gridN;
+        for (var dj = -1; dj <= 1; dj++) for (var di = -1; di <= 1; di++) {
+          if (!di && !dj) continue;
+          var ni = ci + di, nj = cj + dj;
+          if (ni < 0 || nj < 0 || ni >= gridN || nj >= gridN) continue;
+          var nIdx = nj * gridN + ni;
+          if (gridMask[nIdx] || closed[nIdx]) continue;
+          if (di && dj && (gridMask[cj * gridN + ni] || gridMask[nj * gridN + ci])) continue;   // no cutting corners
+          var nc = gCost[cur] + (di && dj ? 1.414 : 1);
+          if (nc < gCost[nIdx]) { gCost[nIdx] = nc; came[nIdx] = cur; fCost[nIdx] = nc + hOf(nIdx); open.push(nIdx); }
+        }
+      }
+      if (came[goalI] < 0) return null;
+      var path = [], at = goalI;
+      while (at !== startI && at >= 0) { var pi = at % gridN, pj = (at - pi) / gridN; path.push({ x: -R + (pi + 0.5) * gridStep, z: -R + (pj + 0.5) * gridStep }); at = came[at]; }
+      path.reverse();
+      if (clearSpot(tx, tz)) path.push({ x: tx, z: tz });      // finish exactly on the spot that was clicked, if there is room there
+      return path;
+    }
+    function clearSpot(x, z) {
+      if (Math.hypot(x, z) > R - 2.6) return false;
+      for (var k = 0; k < colliders.length; k++) { var c = colliders[k]; if (Math.hypot(x - c.x, z - c.z) < c.r + 1.15) return false; }
+      return true;
+    }
+    function routeTo(x, z) {
+      path = findPath(pos.x, pos.z, x, z);
+      if (path && path.length && !clearSpot(target.x, target.z)) { var e = path[path.length - 1]; target = { x: e.x, z: e.z }; }
+    }
+    setTimeout(function () { if (!gridMask) buildGrid(); }, 800);   // have the map ready before the first click
+
     // ---------- loop ----------
+    function openAhead(x, z, ux, uz, d) {          // is there room to walk this way for a few metres?
+      for (var s = 0.6; s <= d; s += 0.6) {
+        var px = x + ux * s, pz = z + uz * s;
+        for (var i = 0; i < colliders.length; i++) {
+          var c = colliders[i];
+          if (Math.hypot(px - c.x, pz - c.z) < c.r + 1.05) return false;
+        }
+      }
+      return true;
+    }
     var pos = new THREE.Vector3(PLACES.start.x, 0, PLACES.start.z + 1.5), heading = -0.5, phase = 0, amp = 0;
     var camLook = new THREE.Vector3(pos.x, 0, pos.z), lookOff = new THREE.Vector3();
     var active = null, activePillar = -1, panelOpen = false, edgeTarget = new THREE.Color(order[0].color);
@@ -372,31 +459,82 @@ window.World = (function () {
       var dt = Math.min(clock.getDelta(), 0.1); t += dt;
 
       // move
-      var dx = (keys.r ? 1 : 0) - (keys.l ? 1 : 0), dz = (keys.d ? 1 : 0) - (keys.u ? 1 : 0), speed = 0;
+      if (path) while (path.length && Math.hypot(path[0].x - pos.x, path[0].z - pos.z) < 1.0) path.shift();
+      var goal = target && path && path.length ? path[0] : target;
+      var dx = (keys.r ? 1 : 0) - (keys.l ? 1 : 0), dz = (keys.d ? 1 : 0) - (keys.u ? 1 : 0), speed = 0, dist = 1e9;
       if (dx || dz) { var len = Math.hypot(dx, dz); dx /= len; dz /= len; speed = 12; }
-      else if (target) {
-        dx = target.x - pos.x; dz = target.z - pos.z; var dist = Math.hypot(dx, dz);
-        if (dist < 0.35) { target = null; dx = dz = 0; }
-        else {
-          dx /= dist; dz /= dist; speed = Math.min(running ? 30 : 12, dist / dt);
-          stuckT = dist > lastDist - speed * dt * 0.3 ? stuckT + dt : 0; lastDist = dist;      // blocked by something? step around it
-          if (stuckT > 0.3) { sidestep = 0.55; side = -side; stuckT = 0; }
-          if (sidestep > 0) { sidestep -= dt; var ox = dx; dx = dx * 0.25 - dz * side; dz = dz * 0.25 + ox * side; var sl = Math.hypot(dx, dz); dx /= sl; dz /= sl; }
-        }
+      else if (goal) {
+        dx = goal.x - pos.x; dz = goal.z - pos.z; dist = Math.hypot(dx, dz);
+        if (dist < 0.35) { if (goal === target) { target = null; path = null; } dx = dz = 0; }
+        else { dx /= dist; dz /= dist; speed = Math.min(running ? 30 : 12, dist / dt); }
       }
+      var travelled = 0;
       if (speed) {
-        pos.x += dx * speed * dt; pos.z += dz * speed * dt;
-        for (var k = 0; k < colliders.length; k++) {
-          var c = colliders[k], cx = pos.x - c.x, cz = pos.z - c.z, cd = Math.hypot(cx, cz), min = c.r + 1.1;
-          if (cd < min && cd > 0.001) { pos.x = c.x + cx / cd * min; pos.z = c.z + cz / cd * min; }
+        var gx0 = dx, gz0 = dz;                                   // straight line to the goal, before dodging anything
+        // ease around obstacles before bumping into them, so the wolf curves past instead of grinding against them
+        var steerX = 0, steerZ = 0, seenObs = 0;
+        for (var q = 0; q < colliders.length; q++) {
+          var oc = colliders[q], ox = oc.x - pos.x, oz = oc.z - pos.z;
+          var ahead = ox * gx0 + oz * gz0, reach = oc.r + 3.3;
+          if (ahead <= 0 || ahead > reach) continue;
+          if (goal && ahead > dist - 0.6) continue;                // the thing we are walking to is not an obstacle to dodge
+          var lat = -ox * gz0 + oz * gx0, half = oc.r + 2.3;
+          if (Math.abs(lat) > half) continue;
+          var push = (1 - ahead / reach) * (1 - Math.abs(lat) / half), sgn = lat > 0 ? -1 : (lat < 0 ? 1 : -slideSide);
+          steerX -= gz0 * sgn * push; steerZ += gx0 * sgn * push; seenObs = 1;
+        }
+        var sl2 = Math.hypot(steerX, steerZ);
+        if (seenObs && sl2 < 0.05) { steerX = -gz0 * slideSide; steerZ = gx0 * slideSide; sl2 = 1; }   // perfectly head-on: pick a side and commit
+        if (sl2 > 1e-4) {
+          var tx2 = gx0 + steerX / sl2 * 1.4, tz2 = gz0 + steerZ / sl2 * 1.4, tl = Math.hypot(tx2, tz2);
+          dx = tx2 / tl; dz = tz2 / tl;
+        }
+        if (hugT > 0) {                                            // walking around something: keep circling until the goal is back in open view
+          hugT -= dt;
+          if (hugT <= 0 || openAhead(pos.x, pos.z, gx0, gz0, 3.5)) hugT = 0;
+          else { dx = -gz0 * hugSide; dz = gx0 * hugSide; }
+        } else if (goal && !path && stall > 0.18) {
+          hugSide = gx0 * anz - gz0 * anx >= 0 ? -1 : 1;            // commit to the free side of whatever is in the way
+          hugT = 9; dx = -gz0 * hugSide; dz = gx0 * hugSide;
+        }
+        var px0 = pos.x, pz0 = pos.z;
+        var stepLen = speed * dt, subs = Math.min(12, Math.max(2, Math.ceil(stepLen / 0.2)));   // small steps, so a fast run can't jump through a rock
+        var sx = dx * stepLen / subs, sz = dz * stepLen / subs, nx = 0, nz = 1;
+        for (var st = 0; st < subs; st++) {
+          pos.x += sx; pos.z += sz;
+          var blocked = false, ax = 0, az = 0;
+          for (var k = 0; k < colliders.length; k++) {
+            var c = colliders[k], cx = pos.x - c.x, cz = pos.z - c.z, cd = Math.hypot(cx, cz), min = c.r + 1.1;
+            if (cd < min) {
+              if (cd < 0.001) { cx = 0; cz = 1; cd = 1; }
+              nx = cx / cd; nz = cz / cd;
+              pos.x = c.x + nx * min; pos.z = c.z + nz * min;                  // stand outside the obstacle
+              ax += nx * (min - cd); az += nz * (min - cd);                    // combined push, for the wedge case
+              var into = sx * nx + sz * nz;
+              if (into < 0) { sx -= into * nx; sz -= into * nz; blocked = true; }  // keep only the part of the step that slides along it
+            }
+          }
+          if (blocked && Math.hypot(sx, sz) < stepLen / subs * 0.35) {          // dead-on hit: nothing left to slide with, so lean and walk around
+            var am = Math.hypot(ax, az);
+            if (am > 1e-6) { ax /= am; az /= am; } else { ax = nx; az = nz; }
+            var sideX = -az, sideZ = ax, along = gx0 * sideX + gz0 * sideZ;
+            if (Math.abs(along) > 0.05) slideSide = along > 0 ? 1 : -1;
+            sx = sideX * slideSide * stepLen / subs; sz = sideZ * slideSide * stepLen / subs;
+          }
+          if (blocked && (ax || az)) { var anm = Math.hypot(ax, az); if (anm > 1e-6) { anx = ax / anm; anz = az / anm; } }
         }
         var pd = Math.hypot(pos.x, pos.z); if (pd > R - 2.5) { pos.x *= (R - 2.5) / pd; pos.z *= (R - 2.5) / pd; }
-        var want = Math.atan2(-dz, dx), diff = Math.atan2(Math.sin(want - heading), Math.cos(want - heading));
-        heading += diff * Math.min(1, dt * 10);
-        phase += speed * dt * 1.5;
-        if (!moved) { moved = true; if (ui.onMove) ui.onMove(); }
+        travelled = Math.hypot(pos.x - px0, pos.z - pz0);
+        if (travelled > 1e-4) {
+          var want = Math.atan2(-(pos.z - pz0), pos.x - px0), diff = Math.atan2(Math.sin(want - heading), Math.cos(want - heading));
+          heading += diff * Math.min(1, dt * 10);                          // face where the wolf actually goes
+          phase += travelled * 1.5;
+          if (!moved) { moved = true; if (ui.onMove) ui.onMove(); }
+        }
+        stall = travelled < stepLen * 0.05 ? stall + dt : 0;
       }
-      amp += ((speed ? 1 : 0) - amp) * Math.min(1, dt * 8);
+      if (target) { travelT += dt; if (travelT > 20) { target = null; running = false; path = null; stall = 0; } } else travelT = 0;
+      amp += (((speed && travelled > 0.002) ? 1 : 0) - amp) * Math.min(1, dt * 8);
       marker.material.opacity = Math.max(0, marker.material.opacity - dt * (target && !running ? 0.3 : 2));
       marker.scale.setScalar(1 + Math.sin(t * 6) * 0.12);
 
