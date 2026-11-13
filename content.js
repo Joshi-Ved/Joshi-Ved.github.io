@@ -14,7 +14,7 @@ window.SITE = {
     showPhotoSlots: true
   },
 
-  /* ---------- who you are ---------- */
+  /* ---------- who I am ---------- */
   profile: {
     name: "Ved Joshi",
     handle: "Blankstar",
@@ -24,8 +24,8 @@ window.SITE = {
     intro: "I'm a third-year Information Technology student at VESIT, Mumbai, working across full-stack web, applied machine learning and security. This island is my story. You explore it as the wolf.",
     links: [
       { label: "GitHub", url: "https://github.com/Joshi-Ved" },
-      { label: "LinkedIn", url: "https://www.linkedin.com/in/ved-joshi0304" }
-      // To show an email, add:  { label: "Email", url: "mailto:you@example.com" }
+      { label: "LinkedIn", url: "https://www.linkedin.com/in/ved-joshi0304" },
+      { label: "Email", url: "mailto:vedjoshi0304@gmail.com" }
     ]
   },
 
@@ -33,13 +33,13 @@ window.SITE = {
      id: do not change. label: short name on the map. place: name in the world.
      color: the place's colour. wolf: what the wolf says on arrival. */
   chapters: [
-    { id: "start",   label: "Camp",     place: "Base Camp",       color: "#ff6b4a", wolf: "This is Base Camp. Lead me anywhere. Every coloured circle is a place." },
-    { id: "story",   label: "Story",    place: "The Den",         color: "#f5a524", wolf: "The Den. This is who he is when nobody is grading him." },
-    { id: "path",    label: "Path",     place: "Milestone Trail", color: "#0fa3a3", wolf: "Each signpost is a track he left. The tallest is the newest." },
-    { id: "builds",  label: "Builds",   place: "The Workshop",    color: "#7c5cff", wolf: "The Workshop. Walk me up to a pillar and I'll dig up that project." },
-    { id: "toolkit", label: "Toolkit",  place: "Crystal Grove",   color: "#ff4f9a", wolf: "Crystal Grove. Everything he hunts with grows here." },
-    { id: "beyond",  label: "Beyond",   place: "The Summit",      color: "#2f7df6", wolf: "The Summit. One flag for every time he showed up and built." },
-    { id: "contact", label: "Contact",  place: "The Beacon",      color: "#e5383b", wolf: "The Beacon. Light it up. He answers." }
+    { id: "start", label: "Camp", place: "Base Camp", color: "#ff6b4a", wolf: "This is Base Camp. Lead me anywhere. Every coloured circle is a place." },
+    { id: "story", label: "Story", place: "The Den", color: "#f5a524", wolf: "The Den. This is who he is when nobody is grading him." },
+    { id: "path", label: "Path", place: "Milestone Trail", color: "#0fa3a3", wolf: "Each signpost is a track he left. The tallest is the newest." },
+    { id: "builds", label: "Builds", place: "The Workshop", color: "#7c5cff", wolf: "The Workshop. Walk me up to a pillar and I'll dig up that project." },
+    { id: "toolkit", label: "Toolkit", place: "Crystal Grove", color: "#ff4f9a", wolf: "Crystal Grove. Everything he hunts with grows here." },
+    { id: "beyond", label: "Beyond", place: "The Summit", color: "#2f7df6", wolf: "The Summit. One flag for every time he showed up and built." },
+    { id: "contact", label: "Contact", place: "The Beacon", color: "#e5383b", wolf: "The Beacon. Light it up. He answers." }
   ],
 
   /* ---------- Story ---------- */
@@ -50,14 +50,14 @@ window.SITE = {
       "On campus I'm Vice Chairperson of ISTE VESIT and a college-appointed peer mentor, helping juniors with data structures and career preparation."
     ],
     stats: [
-      { value: "9.1", label: "CGPA" },
+      { value: "9.24", label: "CGPA" },
       { value: "22", label: "public repos" },
       { value: "4", label: "hackathons" },
-      { value: "3rd", label: "year, B.E. IT" }
+      { value: "4th", label: "year, B.E. IT" }
     ],
     photos: [
       { src: "photos/story-1.jpg", caption: "On campus" },
-      { src: "photos/story-2.jpg", caption: "With the ISTE VESIT team" }
+      { src: "photos/story-2.jpeg", caption: "With the ISTE VESIT team" }
     ]
   },
 
@@ -72,7 +72,7 @@ window.SITE = {
       { when: "Nov 2023", role: "Cybersecurity internship programme", where: "Teachnook, with Wissenaire IIT (BHU)", note: "First hands-on work with vulnerability assessment and network security." }
     ],
     photos: [
-      { src: "photos/path-1.jpg", caption: "Internship project demo" }
+      { src: "photos/path-1.jpeg", caption: "Internship project demo" }
     ]
   },
 
@@ -118,7 +118,7 @@ window.SITE = {
         stack: ["PostgreSQL", "Row-level security"],
         tags: ["Security", "Web"],
         image: "photos/opshub.jpg",
-        url: ""
+        url: "https://github.com/gragznotkool/navi.git"
       },
       {
         name: "Savatsya Gau Samvardhan",
@@ -128,15 +128,6 @@ window.SITE = {
         tags: ["Web"],
         image: "photos/savatsya.jpg",
         url: "https://github.com/Joshi-Ved/Savatsya-Gau-Samvardhan"
-      },
-      {
-        name: "Nav-Vasi",
-        line: "Local know-how for migrants and travellers.",
-        detail: "A crowd-sourced app that helps people new to a city find out what is going on around them.",
-        stack: ["TypeScript"],
-        tags: ["Web"],
-        image: "photos/nav-vasi.jpg",
-        url: "https://github.com/Joshi-Ved/Nav-Vasi"
       },
       {
         name: "yeetcode",
@@ -176,9 +167,8 @@ window.SITE = {
     ],
     interests: ["Economics and how wealth systems work", "Federated learning", "Volunteering in education", "Hiking and cycling"],
     photos: [
-      { src: "photos/beyond-1.jpg", caption: "Mumbai Hacks 2025" },
-      { src: "photos/beyond-2.jpg", caption: "COMMIT 1.0 final" },
-      { src: "photos/beyond-3.jpg", caption: "Hosting at HABITia'25" }
+      { src: "photos/beyond-1.jpeg", caption: "Mumbai Hacks 2025" },
+      { src: "photos/beyond-2.jpeg", caption: "Hosting at HABITia'25" }
     ]
   },
 
@@ -191,12 +181,13 @@ window.SITE = {
   /* ---------- quick facts the wolf says when tapped ---------- */
   facts: [
     "His motto: build, break, learn, repeat.",
-    "He mentors juniors in DSA, and holds a 9.1 CGPA while doing it.",
+    "He mentors juniors in DSA, and holds a 9.24 CGPA while doing it.",
     "He once lost a whole hackathon repo to one bad commit. Rebuilt it. Made the final.",
     "His food detector runs fully in your browser. No server.",
     "He reads about economics for fun.",
     "He dives in alone first. The pack follows anyway.",
     "He stays calm and looks for the real issue.",
-    "He documented his whole switch to Linux, mistakes included."
+    "He documented his whole switch to Linux, mistakes included.",
+    "He is a bit slow when starting but when, his heart is attached he will get it done."
   ]
 };
